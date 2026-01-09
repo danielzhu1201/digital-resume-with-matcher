@@ -189,11 +189,14 @@ export default function ResumeMatcherSection() {
               </CardContent>
             </Card>
 
-            {/* Actionable Insights */}
+            {/* Comparison Insights */}
             <Card className="border-zinc-800 dark:bg-zinc-950">
               <CardHeader>
-                <CardTitle>Actionable Insights</CardTitle>
-                <CardDescription>How to improve your match</CardDescription>
+                <CardTitle>Comparison Insights</CardTitle>
+                <CardDescription>
+                  A qualitative summary providing a narrative analysis of
+                  strengths (what matches) and critical gaps (what is missing).
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 <ul className="space-y-3">
