@@ -62,32 +62,71 @@ export async function POST(req: NextRequest) {
 
     // Use gemini's generateContent API
     const result = await model.generateContent([prompt]);
-    // Defensive: ensure text is always a string for further operations
-    let text: string = "";
-    const maybeText =
+    // 1. Extract Gemini's result text as a string directly (no extra coercion logic needed)
+    const text =
       result.response?.candidates?.[0]?.content?.parts?.[0]?.text ||
       result.response?.text ||
       "";
-    if (typeof maybeText === "string") {
-      text = maybeText;
-    } else if (typeof maybeText === "function") {
-      text = maybeText();
-    } else {
-      text = String(maybeText);
-    }
 
-    try {
-      const parsed: MatchResult = JSON.parse(text);
-      return NextResponse.json({ result: parsed });
-    } catch (e: any) {
+    // 2. If Gemini returned nothing or a purely whitespace string, fail early with a clear error
+    if (!text || typeof text !== "string" || !text.trim()) {
       return NextResponse.json(
         {
-          error: "Gemini output could not be parsed as JSON",
-          detail: e?.message ?? String(e),
+          error: "Gemini produced no usable output.",
+          rawGeminiOutput: text,
         },
         { status: 500 }
       );
     }
+
+    // 3. Quick check—does the output look like JSON? (should start with '{' or '[')
+    if (!text.trim().startsWith("{") && !text.trim().startsWith("[")) {
+      return NextResponse.json(
+        {
+          error: "Gemini's output is not JSON as requested.",
+          rawGeminiOutput: text,
+        },
+        { status: 500 }
+      );
+    }
+
+    // 4. Attempt to parse the output as JSON, catching any parsing errors
+    let parsed: any;
+    try {
+      parsed = JSON.parse(text);
+    } catch (e: any) {
+      // Parsing failed—surface a detailed error including the problematic text for debugging
+      return NextResponse.json(
+        {
+          error: "Gemini output could not be parsed as JSON.",
+          detail: e?.message ?? String(e),
+          rawGeminiOutput: text,
+        },
+        { status: 500 }
+      );
+    }
+
+    // 5. Validate that the parsed object matches our expected MatchResult structure
+    if (
+      typeof parsed !== "object" ||
+      parsed === null ||
+      typeof parsed.score !== "number" ||
+      !Array.isArray(parsed.matches) ||
+      !Array.isArray(parsed.gaps) ||
+      !Array.isArray(parsed.insights)
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Gemini's response was not in the expected MatchResult format.",
+          rawGeminiOutput: text,
+        },
+        { status: 500 }
+      );
+    }
+
+    // 6. If all checks pass, return the parsed MatchResult object as response
+    return NextResponse.json({ result: parsed });
   } catch (e: any) {
     return NextResponse.json(
       { error: "Internal server error", detail: e?.message || String(e) },

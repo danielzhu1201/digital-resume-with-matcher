@@ -1,14 +1,10 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
+import { ProjectCard } from "@/lib/projects";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
-
-/**
- * Generate Zhaosong Zhu's profile with dynamic STAR-format projects.
- */
-import { ProjectCard } from "@/lib/projects";
 
 export function generateZhaosongProfileText(projects: ProjectCard[]): string {
   const intro = `Zhaosong Zhu
