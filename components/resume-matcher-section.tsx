@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { generateZhaosongProfileText } from "@/lib/utils";
+import { projects } from "@/lib/projects";
 import {
   Card,
   CardContent,
@@ -10,6 +12,7 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import { AlertCircle, CheckCircle2 } from "lucide-react";
 
 interface MatchResult {
@@ -24,6 +27,21 @@ export default function ResumeMatcherSection() {
   const [resume, setResume] = useState("");
   const [result, setResult] = useState<MatchResult | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [compareWithZhaosong, setCompareWithZhaosong] = useState(false);
+
+  // Store previous user input for restore, if you want to preserve edit history.
+  const [userResume, setUserResume] = useState("");
+
+  // Handle toggle logic for autofill & lock
+  const handleCompareWithZhaosongChange = (checked: boolean) => {
+    setCompareWithZhaosong(checked);
+    if (checked) {
+      setUserResume(resume); // Save current resume for restore
+      setResume(generateZhaosongProfileText(projects));
+    } else {
+      setResume(userResume); // Restore previous user resume
+    }
+  };
 
   const handleAnalyze = async () => {
     if (!jobDescription.trim() || !resume.trim()) return;
@@ -35,7 +53,10 @@ export default function ResumeMatcherSection() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ jobDescription, resume }),
+        body: JSON.stringify({
+          jobDescription,
+          resume,
+        }),
       });
 
       const data = await response.json();
@@ -100,17 +121,47 @@ export default function ResumeMatcherSection() {
           {/* Resume */}
           <Card className="border-zinc-800 dark:bg-zinc-950">
             <CardHeader>
-              <CardTitle className="text-lg">
-                Your Professional Resume
-              </CardTitle>
-              <CardDescription>Paste your resume text</CardDescription>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-lg">
+                    Your Professional Resume
+                  </CardTitle>
+                  <CardDescription>
+                    Paste your resume text &nbsp;
+                  </CardDescription>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Switch
+                    id="compare-with-zhaosong"
+                    checked={compareWithZhaosong}
+                    onCheckedChange={handleCompareWithZhaosongChange}
+                  />
+                  <label
+                    htmlFor="compare-with-zhaosong"
+                    className="text-sm font-medium cursor-pointer"
+                  >
+                    Compare with Zhaosong
+                  </label>
+                </div>
+              </div>
             </CardHeader>
             <CardContent>
+              {compareWithZhaosong && (
+                <div className="mb-2 text-xs text-accent-foreground px-2 py-1 rounded bg-accent flex items-center gap-2">
+                  <Badge variant="secondary">Profile Autofill</Badge>
+                  Using Zhaosong’s public profile. Resume locked.
+                </div>
+              )}
               <textarea
                 value={resume}
-                onChange={(e) => setResume(e.target.value)}
+                onChange={(e) => {
+                  setResume(e.target.value);
+                  setUserResume(e.target.value);
+                }}
                 placeholder="Senior Software Engineer - Built AI systems at..."
                 className="h-72 w-full rounded border border-input bg-background p-3 text-sm font-mono resize-none focus:outline-none focus:ring-2 focus:ring-ring"
+                disabled={compareWithZhaosong}
+                readOnly={compareWithZhaosong}
               />
             </CardContent>
           </Card>
@@ -120,7 +171,12 @@ export default function ResumeMatcherSection() {
         <div className="mb-8 flex justify-center">
           <Button
             onClick={handleAnalyze}
-            disabled={!jobDescription.trim() || !resume.trim() || isAnalyzing}
+            disabled={
+              !jobDescription.trim() ||
+              ((!resume.trim() || compareWithZhaosong) &&
+                !compareWithZhaosong) ||
+              isAnalyzing
+            }
             size="lg"
             className="pulse-glow"
           >
@@ -189,11 +245,14 @@ export default function ResumeMatcherSection() {
               </CardContent>
             </Card>
 
-            {/* Actionable Insights */}
+            {/* Comparison Insights */}
             <Card className="border-zinc-800 dark:bg-zinc-950">
               <CardHeader>
-                <CardTitle>Actionable Insights</CardTitle>
-                <CardDescription>How to improve your match</CardDescription>
+                <CardTitle>Comparison Insights</CardTitle>
+                <CardDescription>
+                  A qualitative summary providing a narrative analysis of
+                  strengths (what matches) and critical gaps (what is missing).
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 <ul className="space-y-3">
